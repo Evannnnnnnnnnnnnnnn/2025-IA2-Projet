@@ -1,4 +1,4 @@
-# EPF Min2 - IA Exploratoire et Symbolique
+# EPF Min1 - IA Exploratoire et Symbolique
 
 Projet pédagogique d'exploration des approches d'intelligence artificielle symbolique et exploratoire pour les étudiants de l'EPF.
 
@@ -51,7 +51,7 @@ La planification du personnel soignant consiste à affecter de manière optimale
 
 **Technologies pertinentes**
 - Python avec OR-Tools CP-SAT ou IBM CP Optimizer pour la résolution CSP
-- MiniZinc pour la modélisation déclarative de contraintes
+- iZinc pour la modélisation déclarative de contraintes
 - Pandas pour la manipulation des données de planification
 - Matplotlib/Plotly pour la visualisation des emplois du temps
 
@@ -129,7 +129,7 @@ La recherche d'inhibiteurs moléculaires contre la protéase principale du SARS-
 ### 5. Ordonnancement de production (Job-Shop Scheduling)
 
 **Description du problème et contexte**
-Le Job-Shop Scheduling consiste à planifier l'exécution d'un ensemble de tâches (jobs) devant être traitées sur plusieurs machines, chacune ayant une capacité limitée (une tâche par machine à la fois). L'objectif principal est de minimiser le makespan (durée totale de production) tout en optimisant l'utilisation des ressources. Des contraintes supplémentaires peuvent être intégrées : maintenance programmée, ressources cumulatives, objectifs multi-critères.
+Le Job-Shop Scheduling consiste à planifier l'exécution d'un ensemble de tâches (jobs) devant être traitées sur plusieurs machines, chacune ayant une capacité limitée (une tâche par machine à la fois). L'objectif principal est de imiser le makespan (durée totale de production) tout en optimisant l'utilisation des ressources. Des contraintes supplémentaires peuvent être intégrées : maintenance programmée, ressources cumulatives, objectifs multi-critères.
 
 **Références multiples**
 - **Introduction** : [Job Shop Scheduling Problem | sysid blog](https://sysid.github.io/job-shop-scheduling-problem/) - Formulation générale du problème
@@ -146,7 +146,7 @@ Le Job-Shop Scheduling consiste à planifier l'exécution d'un ensemble de tâch
 **Technologies pertinentes**
 - Python avec OR-Tools CP-SAT pour la modélisation et résolution
 - IBM CP Optimizer pour les instances industrielles complexes
-- MiniZinc pour la modélisation déclarative de contraintes
+- iZinc pour la modélisation déclarative de contraintes
 - Gantt charts avec Matplotlib pour la visualisation des plannings
 
 ### 6. Optimisation hospitalière avec métaheuristiques
@@ -157,7 +157,7 @@ L'optimisation des ressources hospitalières est critique pour améliorer la qua
 **Références multiples**
 - **Décharge patients** : [PMC543827](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC543827/) - Optimisation des durées de séjour
 - **Planning patients** : [arXiv:1805.02264](https://arxiv.org/pdf/1805.02264.pdf) - Ordonnancement des interventions
-- **Planning soignants** : [Strathprints](https://strathprints.strath.ac.uk/59727/1/Rahimian_etal_COR_2017_A_hybrid_integer_and_constraint_programming_approach.pdf) - Optimisation du personnel
+- **Planning soignants** : [Strathprints](https://strathprints.strath.ac.uk/59727/1/Rahimian_etal_COR_2017_A_hybrid_integer_and_constraint_programg_approach.pdf) - Optimisation du personnel
 
 **Approches suggérées**
 - Modéliser les contraintes hospitalières (personnel, équipements, réglementations)
