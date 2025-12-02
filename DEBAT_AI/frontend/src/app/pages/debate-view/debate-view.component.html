@@ -1,1 +1,32 @@
-<p>debate-view works!</p>
+<div class="container">
+  <header class="debate-header">
+    <a routerLink="/" class="back-link">&larr; Back to Topics</a>
+    <h2>Debate Chamber</h2>
+    <span class="username-display">You are: <strong>{{ username }}</strong></span>
+  </header>
+
+  <div class="message-container" #messageContainer>
+    <div *ngIf="messages.length === 0" class="loading">
+      Loading messages or no messages yet...
+    </div>
+    <div *ngFor="let msg of messages" class="message" [ngClass]="{'my-message': msg.username === username, 'other-message': msg.username !== username}">
+      <div class="message-bubble">
+        <div class="message-author">{{ msg.username }}</div>
+        <div class="message-content">{{ msg.content }}</div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="message-form-container">
+    <form (ngSubmit)="sendMessage()">
+      <input 
+        type="text" 
+        placeholder="Type your message..."
+        [(ngModel)]="newMessageContent"
+        name="newMessageContent"
+        autocomplete="off"
+      />
+      <button type="submit" [disabled]="!newMessageContent.trim()">Send</button>
+    </form>
+  </footer>
+</div>
