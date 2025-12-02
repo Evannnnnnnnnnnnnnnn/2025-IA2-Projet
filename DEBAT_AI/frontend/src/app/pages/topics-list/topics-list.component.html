@@ -1,1 +1,29 @@
-<p>topics-list works!</p>
+<div class="container">
+  <header>
+    <h1>Debate Topics</h1>
+    <p>Choose a topic to join the discussion.</p>
+  </header>
+
+  <div class="login-section">
+    <label for="username">Your Username:</label>
+    <input 
+      type="text" 
+      id="username" 
+      placeholder="Enter your username"
+      [(ngModel)]="username"
+      (ngModelChange)="onUsernameChange()"
+    />
+  </div>
+
+  <div class="topics-list">
+    <div *ngIf="debates.length === 0" class="loading">
+      Loading debates...
+    </div>
+    <ul>
+      <li *ngFor="let debate of debates" (click)="joinDebate(debate.id)">
+        <span>{{ debate.topic }}</span>
+        <button>Join</button>
+      </li>
+    </ul>
+  </div>
+</div>
