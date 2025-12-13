@@ -24,6 +24,11 @@ export class DebateViewComponent implements OnInit, OnDestroy, AfterViewChecked 
   username: string = '';
   private wsSubscription!: Subscription;
 
+  // --- NOUVEAUX ÉTATS POUR L'IA ---
+  winningIds: string[] = []; // Liste des IDs gagnants (Logique Tweety)
+  loadingSuggestionId: number | null = null; // Quel message charge une suggestion ?
+  suggestionsMap: { [key: number]: string[] } = {}; // Stocke les suggestions reçues
+
   constructor(
     private route: ActivatedRoute,
     private apiService: ApiService,
@@ -56,13 +61,23 @@ export class DebateViewComponent implements OnInit, OnDestroy, AfterViewChecked 
   loadInitialMessages(): void {
     this.apiService.getMessages(this.debateId).subscribe(data => {
       this.messages = data;
+      // Pour l'initialisation, on peut supposer que le dernier message contient l'état actuel
+      // ou attendre le prochain event WebSocket.
+      // Idéalement, le backend devrait renvoyer winningIds dans le GET initial aussi,
+      // mais sinon ça se mettra à jour au premier message reçu.
     });
   }
 
   connectToWebSocket(): void {
     this.wsSubscription = this.websocketService.connect(this.debateId).subscribe({
       next: (message: Message) => {
-        // Avoid adding duplicate messages that the sender already has
+        // 1. Mettre à jour la liste globale des gagnants
+        if (message.current_winners) {
+          // On convertit tout en string pour comparer facilement
+          this.winningIds = message.current_winners.map(id => String(id));
+        }
+
+        // 2. Ajouter le message s'il n'existe pas déjà
         if (!this.messages.find(m => m.id === message.id)) {
             this.messages.push(message);
         }
@@ -79,9 +94,30 @@ export class DebateViewComponent implements OnInit, OnDestroy, AfterViewChecked 
 
     this.apiService.postMessage(this.debateId, this.newMessageContent, this.username)
       .subscribe(() => {
-        // Do NOT add the message here. The WebSocket will deliver it.
         this.newMessageContent = '';
       });
+  }
+
+  // --- NOUVELLES MÉTHODES ---
+
+  // Vérifie si un message est gagnant (Vert)
+  isWinner(msgId: number): boolean {
+    return this.winningIds.includes(String(msgId));
+  }
+
+  // Appelle l'IA pour avoir des idées
+  askForHelp(msgId: number): void {
+    this.loadingSuggestionId = msgId;
+    this.apiService.getSuggestions(this.debateId, msgId).subscribe({
+      next: (resp) => {
+        this.suggestionsMap[msgId] = resp.suggestions;
+        this.loadingSuggestionId = null;
+      },
+      error: (err) => {
+        console.error(err);
+        this.loadingSuggestionId = null;
+      }
+    });
   }
 
   private scrollToBottom(): void {
@@ -89,4 +125,9 @@ export class DebateViewComponent implements OnInit, OnDestroy, AfterViewChecked 
       this.messageContainer.nativeElement.scrollTop = this.messageContainer.nativeElement.scrollHeight;
     } catch(err) { }
   }
+
+  switchUser(newUser: string): void {
+  this.username = newUser;
+  localStorage.setItem('username', newUser);
+}
 }

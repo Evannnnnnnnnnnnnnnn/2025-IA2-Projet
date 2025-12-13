@@ -1,19 +1,77 @@
 <div class="container">
   <header class="debate-header">
-    <a routerLink="/" class="back-link">&larr; Back to Topics</a>
-    <h2>Debate Chamber</h2>
-    <span class="username-display">You are: <strong>{{ username }}</strong></span>
-  </header>
+  <div class="left-nav">
+    <a routerLink="/" class="back-link">&larr; Topics</a>
+  </div>
+  
+  <h2>Debate Chamber</h2>
+
+  <!-- Sélecteur de Joueur -->
+  <div class="user-switcher">
+    <label>Speaking as:</label>
+    <select (change)="switchUser($any($event.target).value)" [value]="username">
+      <option value="Alice">Alice</option>
+      <option value="Bob">Bob</option>
+    </select>
+  </div>
+</header>
 
   <div class="message-container" #messageContainer>
     <div *ngIf="messages.length === 0" class="loading">
       Loading messages or no messages yet...
     </div>
-    <div *ngFor="let msg of messages" class="message" [ngClass]="{'my-message': msg.username === username, 'other-message': msg.username !== username}">
-      <div class="message-bubble">
-        <div class="message-author">{{ msg.username }}</div>
+
+    <!-- Boucle des messages -->
+    <div *ngFor="let msg of messages" class="message" 
+         [ngClass]="{
+           'my-message': msg.username === username, 
+           'other-message': msg.username !== username
+         }">
+      
+      <!-- BULLE DU MESSAGE (Avec classe conditionnelle winner/loser) -->
+      <div class="message-bubble" 
+           [class.winner-bubble]="isWinner(msg.id)"
+           [class.loser-bubble]="!isWinner(msg.id)">
+        
+        <!-- HEADER MESSAGE : Auteur + Badges IA -->
+        <div class="message-header-row">
+          <div class="message-author">{{ msg.username }}</div>
+          
+          <!-- Badges Relation -->
+          <span *ngIf="msg.relation_type === 'attack'" class="badge badge-attack">⚔️ ATTACK</span>
+          <span *ngIf="msg.relation_type === 'support'" class="badge badge-support">🛡️ SUPPORT</span>
+          <span *ngIf="msg.target_id" class="target-ref">↳ Ref #{{msg.target_id}}</span>
+        </div>
+
+        <!-- CONTENU -->
         <div class="message-content">{{ msg.content }}</div>
+
+        <!-- FEEDBACK IA (Critique) -->
+        <div *ngIf="msg.feedback" class="ai-feedback">
+          🤖 <em>Analyze: {{ msg.feedback }}</em>
+        </div>
+
+        <!-- ZONE SUGGESTIONS (Le Coach) -->
+        <!-- On affiche le bouton seulement pour les messages adverses gagnants -->
+        <div *ngIf="msg.username !== username" class="suggestion-area">
+  
+          <button (click)="askForHelp(msg.id)" class="btn-help" *ngIf="!suggestionsMap[msg.id]">
+            {{ loadingSuggestionId === msg.id ? 'Thinking...' : '💡 Suggest Counter-Argument' }}
+          </button>
+
+
+          <!-- Liste des suggestions -->
+          <div *ngIf="suggestionsMap[msg.id]" class="suggestions-box">
+            <small><strong>AI Suggestions:</strong></small>
+            <ul>
+              <li *ngFor="let idea of suggestionsMap[msg.id]">{{ idea }}</li>
+            </ul>
+          </div>
+        </div>
+
       </div>
+      <!-- Fin Bulle -->
+
     </div>
   </div>
 

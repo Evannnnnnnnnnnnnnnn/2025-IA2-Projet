@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Debate, Message } from '../models';
+import { Debate, Message, SuggestionResponse} from '../models';
 
 @Injectable({
   providedIn: 'root'
@@ -21,5 +21,9 @@ export class ApiService {
 
   postMessage(debateId: number, content: string, username: string): Observable<Message> {
     return this.http.post<Message>(`${this.baseUrl}/debates/${debateId}/messages`, { content, username });
+  }
+
+  getSuggestions(debateId: number, targetMessageId: number): Observable<SuggestionResponse> {
+    return this.http.get<SuggestionResponse>(`${this.baseUrl}/debates/${debateId}/suggestions/${targetMessageId}`);
   }
 }
