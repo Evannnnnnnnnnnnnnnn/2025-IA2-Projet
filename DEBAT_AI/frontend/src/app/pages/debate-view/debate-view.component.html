@@ -1,10 +1,17 @@
 <div class="container">
+  
+  <!-- 1. LA BANNIÈRE DE TITRE (Nouveau) -->
+  <div class="topic-banner" *ngIf="debateTopic">
+    <h3>{{ debateTopic }}</h3>
+  </div>
+
+  <!-- 2. LE HEADER (Scoreboard + Actions) -->
   <header class="debate-header">
     
-    <!-- Retour -->
+    <!-- Bouton Retour -->
     <a routerLink="/" class="icon-btn" title="Exit without saving">✕</a>
 
-    <!-- Score -->
+    <!-- Score Board -->
     <div class="score-board">
       <div class="score-side side-a" [class.leading]="scoreA > scoreB">
         <span class="score-name">{{ playerA }}</span>
@@ -17,79 +24,82 @@
       </div>
     </div>
 
-    <!-- Switcher + Bouton FINISH -->
+    <!-- Actions à droite (Switcher + Finish) -->
     <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
       
-      <!-- Switcher -->
+      <!-- Switcher de Joueur -->
       <div class="user-toggle">
+        
+        <!-- JOUEUR A (PRO) -->
         <button 
           class="toggle-btn" 
           [class.active]="username === playerA"
           (click)="switchUser(playerA)">
+          <span class="role-tag pro">PRO</span>
           {{ playerA }}
         </button>
+
+        <!-- JOUEUR B (CON) -->
         <button 
           class="toggle-btn" 
           [class.active]="username === playerB"
           (click)="switchUser(playerB)">
+          <span class="role-tag con">CON</span>
           {{ playerB }}
         </button>
+
       </div>
 
-      <!-- BOUTON FINISH (NOUVEAU) -->
+      <!-- BOUTON FINISH -->
       <button class="btn-finish" (click)="finishDebate()">
         🏁 FINISH
       </button>
 
-    </div>
+    </div> 
+    <!-- Fin de header-actions (C'est souvent ce div qui manquait) -->
 
   </header>
 
+  <!-- 3. ZONE DES MESSAGES -->
   <div class="message-container" #messageContainer>
     <div *ngIf="messages.length === 0" class="loading">
-      Loading messages or no messages yet...
+      Start the debate! Type a message as {{ username }}...
     </div>
 
-    <!-- Boucle des messages -->
     <div *ngFor="let msg of messages" class="message" 
          [ngClass]="{
            'my-message': msg.username === username, 
            'other-message': msg.username !== username
          }">
       
-      <!-- BULLE DU MESSAGE (Avec classe conditionnelle winner/loser) -->
+      <!-- BULLE -->
       <div class="message-bubble" 
            [class.winner-bubble]="isWinner(msg.id)"
            [class.loser-bubble]="!isWinner(msg.id)">
         
-        <!-- HEADER MESSAGE : Auteur + Badges IA -->
+        <!-- Header Message -->
         <div class="message-header-row">
           <div class="message-author">{{ msg.username }}</div>
           
-          <!-- Badges Relation -->
           <span *ngIf="msg.relation_type === 'attack'" class="badge badge-attack">⚔️ ATTACK</span>
           <span *ngIf="msg.relation_type === 'support'" class="badge badge-support">🛡️ SUPPORT</span>
           <span *ngIf="msg.target_id" class="target-ref">↳ Ref #{{msg.target_id}}</span>
         </div>
 
-        <!-- CONTENU -->
+        <!-- Contenu -->
         <div class="message-content">{{ msg.content }}</div>
 
-        <!-- FEEDBACK IA (Critique) -->
+        <!-- Feedback IA -->
         <div *ngIf="msg.feedback" class="ai-feedback">
           🤖 <em>Analyze: {{ msg.feedback }}</em>
         </div>
 
-        <!-- ZONE SUGGESTIONS (Le Coach) -->
-        <!-- On affiche le bouton seulement pour les messages adverses gagnants -->
+        <!-- Suggestions -->
         <div *ngIf="msg.username !== username" class="suggestion-area">
-  
           <button (click)="askForHelp(msg.id)" class="btn-help" *ngIf="!suggestionsMap[msg.id]">
             {{ loadingSuggestionId === msg.id ? 'Thinking...' : '💡 Suggest Counter-Argument' }}
           </button>
 
-
-          <!-- Liste des suggestions -->
           <div *ngIf="suggestionsMap[msg.id]" class="suggestions-box">
             <small><strong>AI Suggestions:</strong></small>
             <ul>
@@ -97,23 +107,57 @@
             </ul>
           </div>
         </div>
+        
 
       </div>
-      <!-- Fin Bulle -->
+    </div>
+  </div>
+
+  <!-- 4. FOOTER (INPUT) -->
+  <footer class="message-form-container">
+    <form>
+      <textarea 
+        class="chat-input"
+        [placeholder]="'Type your argument as ' + username + '...'"
+        [(ngModel)]="newMessageContent"
+        name="newMessageContent"
+        (keydown)="onKeydown($event)"
+        rows="1"
+      ></textarea>
+      
+      <button type="button" (click)="sendMessage()" [disabled]="!newMessageContent.trim()">
+        Send
+      </button>
+    </form>
+  </footer>
+
+  <!-- MODALE DE VICTOIRE (Overlay) -->
+  <div class="winner-overlay" *ngIf="showWinnerModal">
+    <div class="winner-card-popup">
+      
+      <div class="trophy-icon">🏆</div>
+      
+      <h2>DEBATE FINISHED</h2>
+      
+      <div class="winner-announce">
+        <span *ngIf="winnerName !== 'Draw'" class="the-winner">Winner: {{ winnerName }}</span>
+        <span *ngIf="winnerName === 'Draw'" class="the-winner">It's a Draw!</span>
+      </div>
+
+      <div class="final-score-display">
+        <span [class.win-text]="scoreA >= scoreB">{{ playerA }} ({{ scoreA }})</span>
+        <span class="vs-text">vs</span>
+        <span [class.win-text]="scoreB >= scoreA">{{ playerB }} ({{ scoreB }})</span>
+      </div>
+
+      <p class="winner-subtext">{{ winnerMessage }}</p>
+
+      <div class="modal-actions">
+        <button class="btn-cancel-modal" (click)="cancelFinish()">Wait, continue debate</button>
+        <button class="btn-confirm-modal" (click)="confirmReset()">End & Reset Match</button>
+      </div>
 
     </div>
   </div>
 
-  <footer class="message-form-container">
-    <form (ngSubmit)="sendMessage()">
-      <input 
-        type="text" 
-        placeholder="Type your message..."
-        [(ngModel)]="newMessageContent"
-        name="newMessageContent"
-        autocomplete="off"
-      />
-      <button type="submit" [disabled]="!newMessageContent.trim()">Send</button>
-    </form>
-  </footer>
 </div>

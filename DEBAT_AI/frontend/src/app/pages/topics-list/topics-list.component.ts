@@ -44,12 +44,20 @@ export class TopicsListComponent implements OnInit {
       return;
     }
 
-    // On sauvegarde les noms pour la page suivante
+    // 1. Sauvegarder les noms
     localStorage.setItem('debaterA', this.debaterA);
     localStorage.setItem('debaterB', this.debaterB);
-    
-    // Par défaut, c'est le joueur A qui commence
     localStorage.setItem('username', this.debaterA);
+
+    // 2. Sauvegarder le TITRE du débat (pour l'afficher après)
+    localStorage.setItem('debateTopic', this.selectedDebate.topic);
+
+    // 3. CRÉATION DE LA CLÉ DE SESSION UNIQUE
+    // On trie les noms pour que "Alice vs Bob" soit pareil que "Bob vs Alice"
+    const participants = [this.debaterA, this.debaterB].sort().join('_');
+    const sessionId = `${this.selectedDebate.id}_${participants}`;
+    
+    localStorage.setItem('currentSessionId', sessionId);
 
     this.router.navigate(['/debates', this.selectedDebate.id]);
   }

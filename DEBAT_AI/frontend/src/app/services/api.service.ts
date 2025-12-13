@@ -15,19 +15,19 @@ export class ApiService {
     return this.http.get<Debate[]>(`${this.baseUrl}/debates`);
   }
 
-  getMessages(debateId: number): Observable<Message[]> {
-    return this.http.get<Message[]>(`${this.baseUrl}/debates/${debateId}/messages`);
+  getMessages(debateId: number, sessionId: string): Observable<Message[]> {
+    return this.http.get<Message[]>(`${this.baseUrl}/debates/${debateId}/messages?session_id=${sessionId}`);
   }
 
-  postMessage(debateId: number, content: string, username: string): Observable<Message> {
-    return this.http.post<Message>(`${this.baseUrl}/debates/${debateId}/messages`, { content, username });
+  postMessage(debateId: number, content: string, username: string, sessionId: string): Observable<Message> {
+    return this.http.post<Message>(`${this.baseUrl}/debates/${debateId}/messages`, { content, username, session_id: sessionId });
   }
 
   getSuggestions(debateId: number, targetMessageId: number): Observable<SuggestionResponse> {
     return this.http.get<SuggestionResponse>(`${this.baseUrl}/debates/${debateId}/suggestions/${targetMessageId}`);
   }
 
-  resetDebate(debateId: number): Observable<any> {
-    return this.http.delete(`${this.baseUrl}/debates/${debateId}/messages`);
+  resetDebate(debateId: number, sessionId: string): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/debates/${debateId}/messages?session_id=${sessionId}`);
   }
 }

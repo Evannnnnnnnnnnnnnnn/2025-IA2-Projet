@@ -24,6 +24,10 @@ export class DebateViewComponent implements OnInit, OnDestroy, AfterViewChecked 
   newMessageContent: string = '';
   debateId: number = 0;
   
+  // NOUVEAU : Infos de la session (Le Match)
+  debateTopic: string = 'Loading...';
+  sessionId: string = '';
+
   // Gestion des Joueurs
   username: string = ''; // L'utilisateur actuel (celui qui parle)
   playerA: string = 'Alice';
@@ -41,6 +45,10 @@ export class DebateViewComponent implements OnInit, OnDestroy, AfterViewChecked 
   loadingSuggestionId: number | null = null;
   suggestionsMap: { [key: number]: string[] } = {};
 
+  showWinnerModal: boolean = false;
+  winnerName: string = '';
+  winnerMessage: string = '';
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -55,8 +63,12 @@ export class DebateViewComponent implements OnInit, OnDestroy, AfterViewChecked 
     
     // Par défaut, on prend le nom stocké, sinon le joueur A
     this.username = localStorage.getItem('username') || this.playerA;
+
+    // 2. NOUVEAU : Récupération du Titre et de l'ID de Session Unique
+    this.debateTopic = localStorage.getItem('debateTopic') || 'Debate';
+    this.sessionId = localStorage.getItem('currentSessionId') || 'default_session';
     
-    // 2. Initialisation du débat
+    // 3. Initialisation du débat
     this.route.paramMap.subscribe(params => {
       this.debateId = Number(params.get('id'));
       if (this.debateId) {
@@ -80,10 +92,11 @@ export class DebateViewComponent implements OnInit, OnDestroy, AfterViewChecked 
   // --- CHARGEMENT & WEBSOCKET ---
 
   loadInitialMessages(): void {
-    this.apiService.getMessages(this.debateId).subscribe(data => {
+    this.apiService.getMessages(this.debateId, this.sessionId).subscribe(data => {
       this.messages = data;
-      // Note: Idéalement le backend devrait renvoyer les winningIds ici aussi
-      // Mais sinon, ça se mettra à jour au prochain message
+      if (this.messages.length > 0 && this.messages[0].current_winners) {
+        this.winningIds = this.messages[0].current_winners.map(id => String(id));
+      }
       this.calculateScore(); 
     });
   }
@@ -91,6 +104,14 @@ export class DebateViewComponent implements OnInit, OnDestroy, AfterViewChecked 
   connectToWebSocket(): void {
     this.wsSubscription = this.websocketService.connect(this.debateId).subscribe({
       next: (message: Message) => {
+        
+        // MODIFIÉ : Filtre de sécurité
+        // Si le message reçu ne porte pas le bon session_id, on l'ignore.
+        // (Cast 'any' au cas où le modèle TS n'est pas encore à jour strictement, mais le backend envoie bien le champ)
+        if ((message as any).session_id && (message as any).session_id !== this.sessionId) {
+            return;
+        }
+
         // 1. Mise à jour de la logique (Qui gagne ?)
         if (message.current_winners) {
           this.winningIds = message.current_winners.map(id => String(id));
@@ -111,12 +132,21 @@ export class DebateViewComponent implements OnInit, OnDestroy, AfterViewChecked 
     });
   }
 
+  onKeydown(event: KeyboardEvent): void {
+    // Si on appuie sur Entrée SANS la touche Maj (Shift)
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      this.sendMessage();
+    }
+  }
+
   sendMessage(): void {
     if (!this.newMessageContent.trim() || !this.username) {
       return;
     }
 
-    this.apiService.postMessage(this.debateId, this.newMessageContent, this.username)
+    // MODIFIÉ : On envoie le sessionId pour lier le message au bon match
+    this.apiService.postMessage(this.debateId, this.newMessageContent, this.username, this.sessionId)
       .subscribe(() => {
         this.newMessageContent = '';
         // Le message s'affichera via le WebSocket
@@ -174,26 +204,31 @@ export class DebateViewComponent implements OnInit, OnDestroy, AfterViewChecked 
   }
 
   finishDebate(): void {
-    // 1. Déterminer le gagnant
-    let winnerName = 'Draw';
-    let message = 'It\'s a tie! Good game.';
-
+    // 1. Calcul du gagnant
     if (this.scoreA > this.scoreB) {
-      winnerName = this.playerA;
-      message = `🏆 VICTORY! \n${this.playerA} wins the debate logically!`;
+      this.winnerName = this.playerA;
+      this.winnerMessage = `${this.playerA} wins by logic!`;
     } else if (this.scoreB > this.scoreA) {
-      winnerName = this.playerB;
-      message = `🏆 VICTORY! \n${this.playerB} wins the debate logically!`;
+      this.winnerName = this.playerB;
+      this.winnerMessage = `${this.playerB} wins by logic!`;
+    } else {
+      this.winnerName = 'Draw';
+      this.winnerMessage = "It's a perfect tie!";
     }
 
-    // 2. Annoncer le résultat
-    if (confirm(`${message}\n\nDo you want to end this debate and reset the board?`)) {
-      
-      // 3. Vider le débat (Appel Backend)
-      this.apiService.resetDebate(this.debateId).subscribe(() => {
-        // 4. Retourner à l'accueil
-        this.router.navigate(['/']);
-      });
-    }
+    
+    this.showWinnerModal = true;
+  }
+
+  
+  confirmReset(): void {
+    this.apiService.resetDebate(this.debateId, this.sessionId).subscribe(() => {
+      this.router.navigate(['/']);
+    });
+  }
+  
+  
+  cancelFinish(): void {
+    this.showWinnerModal = false;
   }
 }

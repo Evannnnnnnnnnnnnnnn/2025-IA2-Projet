@@ -49,10 +49,12 @@ class Message(BaseModel):
     feedback: Optional[str] = None
     # Champ spécial pour envoyer les gagnants au Frontend
     current_winners: Optional[List[str]] = []
+    session_id: Optional[str] = None
 
 class MessageIn(BaseModel):
     content: str
-    username: str # We'll use username to find/create user
+    username: str
+    session_id: str # We'll use username to find/create user
 
 # --- WebSocket Connection Manager ---
 class ConnectionManager:
@@ -107,91 +109,119 @@ async def get_debates():
         return [Debate(id=row['id'], topic=row['topic']) for row in rows]
 
 @app.get("/api/debates/{debate_id}/messages", response_model=List[Message])
-async def get_messages(debate_id: int):
+async def get_messages(debate_id: int, session_id: str):
     db_pool = await get_pool()
     async with db_pool.acquire() as connection:
+        # 1. On récupère les messages de la session
         rows = await connection.fetch(
             """
             SELECT m.id, m.content, m.user_id, m.debate_id, m.created_at, 
-                   m.arg_type, m.relation_type, m.target_id, m.feedback, u.username
+                   m.arg_type, m.relation_type, m.target_id, m.feedback, m.session_id, u.username
             FROM messages m
             JOIN users u ON m.user_id = u.id
-            WHERE m.debate_id = $1
+            WHERE m.debate_id = $1 AND m.session_id = $2
             ORDER BY m.created_at ASC
             """,
-            debate_id
+            debate_id, session_id
         )
-        return [Message(**dict(row)) for row in rows]
+        
+        # Astuce : On convertit les résultats SQL en dictionnaires Python modifiables
+        results = [dict(row) for row in rows]
+
+        # 2. SI on a des messages, on doit recalculer les gagnants TOUT DE SUITE
+        if results:
+            # On prépare les données pour Tweety
+            debate_data = [
+                {
+                    "id": r["id"], 
+                    "arg_type": r["arg_type"], 
+                    "relation": r["relation_type"], 
+                    "target_id": r["target_id"]
+                } 
+                for r in results
+            ]
+            
+            # On appelle Java
+            winning_ids = solve_debate(debate_data)
+            
+            # On injecte la liste des gagnants dans CHAQUE message renvoyé
+            # (Comme ça le frontend pourra lire l'info sur n'importe quel message)
+            for msg in results:
+                msg['current_winners'] = winning_ids
+
+        return [Message(**row) for row in results]
 
 @app.post("/api/debates/{debate_id}/messages", response_model=Message)
 async def create_message(debate_id: int, message_in: MessageIn):
     db_pool = await get_pool()
-     # 1. Récupérer le contexte pour l'IA (les 10 derniers messages)
+    
+    # 1. Récupérer le contexte pour l'IA (Filtré par SESSION_ID)
+    # On ne veut pas que l'IA lise les messages d'un autre match (Alice vs Charlie)
     async with db_pool.acquire() as connection:
         history_rows = await connection.fetch("""
             SELECT id, content, arg_type FROM messages 
-            WHERE debate_id = $1 ORDER BY created_at DESC LIMIT 10
-        """, debate_id)
-        # On formate pour que GPT comprenne
+            WHERE debate_id = $1 AND session_id = $2
+            ORDER BY created_at DESC LIMIT 10
+        """, debate_id, message_in.session_id)
+        
         history_context = [{"id": str(r['id']), "content": r['content'], "type": r['arg_type']} for r in history_rows]
 
-    # 2. Appel à ton module IA (Argument Mining)
-    print(f" Analyse IA du message : {message_in.content}")
+    # 2. Appel à ton module IA (Argument Mining) - Inchangé
+    print(f"🤖 Analyse IA du message : {message_in.content}")
     try:
         ai_analysis = analyze_argument(message_in.content, history_context)
-        # ai_analysis = {'type': 'premise', 'relation': 'attack', 'target_id': 12, ...}
     except Exception as e:
-        print(f" Erreur IA: {e}")
-        ai_analysis = {} # Valeurs par défaut
+        print(f"⚠️ Erreur IA: {e}")
+        ai_analysis = {}
 
-    # Extraction sécurisée des valeurs
+    # Extraction des valeurs
     arg_type = ai_analysis.get('type', 'claim')
     relation = ai_analysis.get('relation', 'none')
     target_id = ai_analysis.get('target_id')
     feedback = ai_analysis.get('feedback')
 
-    # Si target_id est vide ou invalide (ex: pas un nombre), on le met à None
     if not isinstance(target_id, int):
         target_id = None
 
     async with db_pool.acquire() as connection:
         async with connection.transaction():
-            # Gestion User
+            # Gestion User - Inchangé
             user = await connection.fetchrow("SELECT id FROM users WHERE username = $1", message_in.username)
             if user:
                 user_id = user['id']
             else:
                 user_id = await connection.fetchval("INSERT INTO users (username) VALUES ($1) RETURNING id", message_in.username)
 
-            # 3. Insertion en Base de Données (Avec les nouvelles colonnes)
+            # 3. Insertion en Base de Données (AVEC SESSION_ID)
             row = await connection.fetchrow(
                 """
-                INSERT INTO messages (content, user_id, debate_id, arg_type, relation_type, target_id, feedback)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING id, content, user_id, debate_id, created_at, arg_type, relation_type, target_id, feedback
+                INSERT INTO messages (content, user_id, debate_id, arg_type, relation_type, target_id, feedback, session_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                RETURNING id, content, user_id, debate_id, created_at, arg_type, relation_type, target_id, feedback, session_id
                 """,
-                message_in.content, user_id, debate_id, arg_type, relation, target_id, feedback
+                message_in.content, user_id, debate_id, arg_type, relation, target_id, feedback, message_in.session_id
             )
 
-            # 4. Calcul Logique (Tweety) - On relit TOUT le débat pour mettre à jour le graphe
+            # 4. Calcul Logique (Tweety) - Filtré par SESSION_ID
+            # On ne veut calculer le graphe que pour ce match spécifique
             all_messages = await connection.fetch("""
                 SELECT id, arg_type, relation_type as relation, target_id 
-                FROM messages WHERE debate_id = $1
-            """, debate_id)
+                FROM messages WHERE debate_id = $1 AND session_id = $2
+            """, debate_id, message_in.session_id)
             
-            # Conversion pour ton module Python/Java
             debate_data = [dict(m) for m in all_messages]
             
-            print(" Calcul des gagnants avec Java...")
+            print("🧠 Calcul des gagnants avec Java...")
             winning_ids = solve_debate(debate_data)
-            print(f" Gagnants actuels : {winning_ids}")
+            print(f"🏆 Gagnants actuels : {winning_ids}")
 
             # 5. Préparation de la réponse
             response_dict = dict(row)
             response_dict['username'] = message_in.username
-            response_dict['current_winners'] = winning_ids # On ajoute les gagnants !
+            response_dict['current_winners'] = winning_ids
 
-            # 6. Diffusion WebSocket (Tout le monde reçoit la mise à jour)
+            # 6. Diffusion WebSocket
+            # Le frontend filtrera les messages qui ne concernent pas sa session
             await manager.broadcast(response_dict, debate_id)
             
             return Message(**response_dict)
@@ -236,13 +266,12 @@ def read_root():
     return {"status": "Backend is running"}
 
 @app.delete("/api/debates/{debate_id}/messages")
-async def reset_debate(debate_id: int):
-    """
-    Supprime tous les messages d'un débat pour repartir de zéro.
-    """
+async def reset_debate(debate_id: int, session_id: str): # <-- Besoin du session_id
     db_pool = await get_pool()
     async with db_pool.acquire() as connection:
-        # On supprime les messages liés à ce débat
-        await connection.execute("DELETE FROM messages WHERE debate_id = $1", debate_id)
-        
-    return {"status": "Debate reset successfully"}
+        # On ne supprime QUE ce match là
+        await connection.execute(
+            "DELETE FROM messages WHERE debate_id = $1 AND session_id = $2", 
+            debate_id, session_id
+        )
+    return {"status": "Match reset successfully"}
