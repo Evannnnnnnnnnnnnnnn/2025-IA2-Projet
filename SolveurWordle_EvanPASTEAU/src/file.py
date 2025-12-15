@@ -1,0 +1,53 @@
+from pathlib import Path
+
+# The base directory of the 3b1b-wordle-solver project, which is the parent of the 'src' directory
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+DATA_DIR = BASE_DIR / "data"
+SHORT_WORD_LIST_FILE = "possible_words.txt"
+LONG_WORD_LIST_FILE = "allowed_words.txt"
+WORD_FREQ_FILE = "wordle_words_freq_full.txt"
+WORD_FREQ_MAP_FILE = "freq_map.json"
+PATTERN_MATRIX_FILE = "pattern_matrix.npy"
+SIMULATION_DIR = "simulation_results"
+
+
+def get_data_dir(game_name):
+    return Path(DATA_DIR) / game_name
+
+
+def get_data_fname(game_name, file):
+    return get_data_dir(game_name) / file
+
+
+def get_short_word_list_fname(game_name, language="en"):
+    file_name = SHORT_WORD_LIST_FILE
+    if language == "fr":
+        file_name = file_name.replace(".txt", "_fr.txt")
+    return get_data_fname(game_name, file_name)
+
+
+def get_long_word_list_fname(game_name, language="en"):
+    file_name = LONG_WORD_LIST_FILE
+    if language == "fr":
+        file_name = file_name.replace(".txt", "_fr.txt")
+    return get_data_fname(game_name, file_name)
+
+
+def get_word_freq_fname(game_name):
+    return get_data_fname(game_name, WORD_FREQ_FILE)
+
+
+def get_word_freq_map_fname(game_name):
+    return get_data_fname(game_name, WORD_FREQ_MAP_FILE)
+
+
+def get_pattern_matrix_fname(game_name, language="en"):
+    file_name = PATTERN_MATRIX_FILE
+    if language == "fr":
+        file_name = file_name.replace(".npy", "_fr.npy")
+    return get_data_fname(game_name, file_name)
+
+
+def get_simulation_results_folder(game_name):
+    return get_data_fname(game_name, SIMULATION_DIR)
