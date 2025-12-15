@@ -1,6 +1,7 @@
 import random
 from pathlib import Path
 import json
+import argparse
 
 import numpy as np
 from tqdm import tqdm
@@ -52,16 +53,17 @@ def play_game(
     purely_maximize_information=False,
     brute_force_optimize=False,
     brute_force_depth=10,
+    language="en",
 ):
-    all_words = get_word_list(game_name, short=False)
-    short_word_list = get_word_list(game_name, short=True)
+    all_words = get_word_list(game_name, short=False, language=language)
+    short_word_list = get_word_list(game_name, short=True, language=language)
 
     if first_guess is None:
         # A good starting word
-        first_guess = "salet"
+        first_guess = "soare" if language == "fr" else "TAIRE"
 
     if priors is None:
-        priors = get_frequency_based_priors(game_name)
+        priors = get_frequency_based_priors(game_name, language=language)
 
 
     guesses = []
@@ -94,7 +96,7 @@ def play_game(
 
         guesses.append(guess)
         patterns.append(pattern)
-        possibilities = get_possible_words(guess, pattern, possibilities, game_name)
+        possibilities = get_possible_words(guess, pattern, possibilities, game_name, language=language)
 
         if not possibilities:
             print("\nThere are no possible words left. Something went wrong!")
@@ -104,7 +106,7 @@ def play_game(
         choices = all_words
         if hard_mode:
             for g, p in zip(guesses, patterns, strict=True):
-                choices = get_possible_words(g, p, choices, game_name)
+                choices = get_possible_words(g, p, choices, game_name, language=language)
         
         if brute_force_optimize:
             guess = brute_force_optimal_guess(
@@ -113,6 +115,7 @@ def play_game(
                 priors,
                 game_name=game_name,
                 n_top_picks=brute_force_depth,
+                language=language,
             )
         else:
             guess = optimal_guess(
@@ -123,15 +126,29 @@ def play_game(
                 look_two_ahead=look_two_ahead,
                 purely_maximize_information=purely_maximize_information,
                 optimize_for_uniform_distribution=optimize_for_uniform_distribution,
+                language=language,
             )
 
     print("\nGame over! We couldn't solve it in 6 tries.")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Wordle Interactive Solver")
+    parser.add_argument(
+        "--language",
+        type=str,
+        default="en",
+        choices=["en", "fr"],
+        help="Language for the wordle game (en or fr)",
+    )
+    args = parser.parse_args()
+
     print("--- Wordle Interactive Solver ---")
     print("Enter the 5-letter pattern you get from Wordle.")
     print("Use 'b' for black, 'y' for yellow, and 'g' for green.")
     print("Example: if the word is 'WATER' and you guess 'LATER', the pattern is 'bgggg' (L is not in the word).")
     
-    play_game(priors=get_true_wordle_prior("wordle"))
+    play_game(
+        priors=get_true_wordle_prior("wordle", language=args.language),
+        language=args.language
+    )
