@@ -89,18 +89,7 @@ class LLMSolver:
         'g' = green, 'y' = yellow, 'b' = black/gray.
         """
         prompt = (
-            "You are a Wordle assistant. Your goal is to guess the secret 5-letter word.\n"
-            "Based on the history of guesses and their results (patterns), suggest the best next 5-letter word.\n"
-            "The pattern indicates the result for each letter:\n"
-            "- 'g': The letter is in the correct position (green).\n"
-            "- 'y': The letter is in the word but in the wrong position (yellow).\n"
-            "- 'b': The letter is not in the word (black/gray).\n\n"
-            "Example Game:\n"
-            "Secret word: 'APPLE'\n"
-            "History:\n"
-            "- Guess: 'CRANE', Pattern: 'bbbyb'\n"
-            "- Guess: 'PULLY', Pattern: 'ybbbb'\n\n"
-            "Based on this, a good next guess would be 'APPLE'.\n\n"
+            "Act as a Wordle assistant trying to find the secret five-letter word. Look at the history of previous guesses to suggest the best next move. Use the standard color codes: Green ('g') means the letter is in the right spot, Yellow ('y') means it is in the word but the wrong spot, and Black ('b') means the letter isn't in the word at all.\n\nx"
         )
 
         if not history:

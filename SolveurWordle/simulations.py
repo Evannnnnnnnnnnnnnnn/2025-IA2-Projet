@@ -220,14 +220,9 @@ if __name__ == "__main__":
             sys.exit(1)
         test_set = [args.word]
 
-    print("--- Running standard Wordle simulation ---")
     results, decision_map = simulate_games(
         game_name="wordle",
         priors=get_true_wordle_prior("wordle", language=args.language),
         test_set=test_set,
         language=args.language,
     )
-    print("\n--- Simulation Complete ---")
-    print(f"Average Score: {results['average_score']:.2f}")
-    print(f"Score Distribution: {results['score_distribution']}")
-    print("-----------------------------")
