@@ -1,5 +1,0 @@
-.main-content {
-  flex-grow: 1; /* Allow content to take available space */
-  display: flex;
-  flex-direction: column;
-}
