@@ -60,7 +60,7 @@ def play_game(
 
     if first_guess is None:
         # A good starting word
-        first_guess = "soare" if language == "fr" else "TAIRE"
+        first_guess = "TAIRE" if language == "fr" else "soare"
 
     if priors is None:
         priors = get_frequency_based_priors(game_name, language=language)
